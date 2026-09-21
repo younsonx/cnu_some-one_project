@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { ensureSchema, getD1 } from "../../db";
 import { requireChatGPTUser } from "../chatgpt-auth";
 import "./admin.css";
+import "./reset.css";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,9 @@ export const metadata: Metadata = {
 type Participant = { id: string; nickname: string; gender: "male" | "female"; avatar: string; created_at: string };
 type Choice = { stage: 1 | 2 | 3; heartColor: "red" | "yellow"; senderId: string; fromName: string; fromAvatar: string; recipientId: string; toName: string; toAvatar: string };
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
   const user = await requireChatGPTUser("/admin");
+  const query = await searchParams;
   const configuredAdmin = ((env.ADMIN_EMAIL as string | undefined) ?? process.env.ADMIN_EMAIL)?.toLowerCase();
   if (!configuredAdmin || user.email.toLowerCase() !== configuredAdmin) {
     return <main className="admin-denied"><div><span>🔒</span><h1>관리자만 볼 수 있어요</h1><p>이 계정에는 행사 결과를 열람할 권한이 없습니다.</p><a href="/">참가자 화면으로 돌아가기</a></div></main>;
@@ -51,6 +53,7 @@ export default async function AdminPage() {
     <section className="admin-hero"><div><div className="admin-kicker">ADMIN DASHBOARD</div><h1>{user.fullName ?? "곽윤성"} 관리자님,<br /><em>행사 현황</em>을 확인하세요</h1><p>샘플 참가자는 제외하고 실제 입장한 사용자와 실제 전달된 마음만 집계합니다.</p></div><a href="/admin" className="refresh-button">↻ 새로고침</a></section>
 
     <div className="admin-content">
+      {query.reset === "done" && <div className="reset-success">✓ 기존 테스트 프로필과 선택 기록을 모두 초기화했습니다.</div>}
       <section className="admin-overview">
         <article><span>👥</span><p><small>실제 참가자</small><strong>{participants.length}<i>명</i></strong></p><em>여 {women.length} · 남 {men.length}</em></article>
         <article><span>♥</span><p><small>전달된 마음</small><strong>{choices.length}<i>개</i></strong></p><em>빨강 {choices.filter((c) => c.heartColor === "red").length} · 노랑 {choices.filter((c) => c.heartColor === "yellow").length}</em></article>
@@ -66,6 +69,7 @@ export default async function AdminPage() {
       <section className="admin-block"><div className="admin-heading"><div><span>04</span><p><strong>참가자별 받은 마음</strong><small>결과 공개 시 각 참가자에게 보이는 실제 내용</small></p></div></div>{participants.length ? <div className="admin-results">{participants.map((p) => { const received = choices.filter((c) => c.recipientId === p.id); return <article key={p.id}><header><div>{p.avatar}</div><p><strong>{p.nickname}</strong><small>{received.length}개의 마음 도착</small></p><b>{received.length}</b></header>{([1, 2, 3] as const).map((stage) => <div className="admin-result-stage" key={stage}><span>{stage}차</span><div>{received.filter((c) => c.stage === stage).length ? received.filter((c) => c.stage === stage).map((c, index) => <p key={index}><i className={c.heartColor}>♥</i>{c.fromName}</p>) : <small>—</small>}</div></div>)}</article>; })}</div> : <Empty text="참가자가 입장하면 개인별 결과가 이곳에 표시됩니다." />}</section>
 
       <section className="admin-final"><div className="admin-heading light"><div><span>05</span><p><strong>최종 상호 선택</strong><small>3차에서 서로 빨간 하트를 보낸 참가자</small></p></div><b>{finalPairs.length}쌍</b></div>{finalPairs.length ? <div className="admin-matches">{finalPairs.map((pair) => <article key={`${pair.senderId}-${pair.recipientId}`}><div><span>{pair.fromAvatar}</span><strong>{pair.fromName}</strong></div><p><b>♥</b><small>서로의 최종 선택</small><b>♥</b></p><div><span>{pair.toAvatar}</span><strong>{pair.toName}</strong></div></article>)}</div> : <div className="dark-empty">아직 최종 상호 선택 결과가 없습니다.</div>}</section>
+      <section className="admin-reset"><div><strong>테스트 데이터 초기화</strong><p>실제 참가자로 저장된 기존 테스트 프로필과 모든 선택 기록을 삭제합니다. 가상 참가자는 앞으로 목록에 표시되지 않습니다.</p></div><form action="/api/admin/reset" method="post"><input type="hidden" name="confirm" value="RESET_TEST_DATA" /><button type="submit">테스트 데이터 모두 삭제</button></form></section>
     </div>
   </main>;
 }
