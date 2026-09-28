@@ -26,8 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
-    openGraph: { title, description, images: [{ url: `${origin}/og.png`, width: 1731, height: 909 }] },
-    twitter: { card: "summary_large_image", title, description, images: [`${origin}/og.png`] },
+    openGraph: { title, description, images: [{ url: `${origin}/og.jpg`, width: 1200, height: 630 }] },
+    twitter: { card: "summary_large_image", title, description, images: [`${origin}/og.jpg`] },
   };
 }
 
