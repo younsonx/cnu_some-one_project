@@ -35,3 +35,12 @@ test("gates stages on all required submissions and reveals completed rounds", as
   assert.match(page, /서로를 최종 선택했어요/);
   assert.match(page, /나를 최종 선택했어요/);
 });
+
+test("includes an isolated 20-person live simulation", async () => {
+  const simulation = await read("app/simulation/LiveSimulation.tsx");
+  assert.match(simulation, /실제 데이터와 분리된 가상 시뮬레이션/);
+  assert.match(simulation, /여성 10명 · 남성 10명/);
+  assert.match(simulation, /setTimeout/);
+  assert.match(simulation, /일시정지/);
+  assert.match(simulation, /최종 상호 선택 결과/);
+});

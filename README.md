@@ -4,7 +4,7 @@
 
 ![마음, 한 잔 대표 이미지](public/og.jpg)
 
-[참가자 웹앱](https://maeum-han-jan.b04836ef-c4de-4d92-9db3-39c1e246ccd9.chatgpt.site/) · [관리자 대시보드](https://maeum-han-jan.b04836ef-c4de-4d92-9db3-39c1e246ccd9.chatgpt.site/admin) · [8인 시뮬레이션](https://maeum-han-jan.b04836ef-c4de-4d92-9db3-39c1e246ccd9.chatgpt.site/simulation)
+[참가자 웹앱](https://maeum-han-jan.b04836ef-c4de-4d92-9db3-39c1e246ccd9.chatgpt.site/) · [관리자 대시보드](https://maeum-han-jan.b04836ef-c4de-4d92-9db3-39c1e246ccd9.chatgpt.site/admin) · [20인 라이브 시뮬레이션](https://maeum-han-jan.b04836ef-c4de-4d92-9db3-39c1e246ccd9.chatgpt.site/simulation)
 
 ## 프로젝트 개요
 
@@ -123,7 +123,7 @@ flowchart TB
 | --- | --- |
 | `/` | 프로필 생성, 단계별 선택, 개인 결과 |
 | `/admin` | 인증된 운영자용 행사 현황과 결과 |
-| `/simulation` | 8인 행사를 가정한 정적 시뮬레이션 |
+| `/simulation` | 여성 10명·남성 10명의 선택 과정을 자동 재생하는 라이브 시뮬레이션 |
 | `/api/app` | 참가자 생성·상태 조회·선택 저장 |
 | `/api/admin/reset` | 관리자 전용 테스트 데이터 초기화 |
 
@@ -136,7 +136,7 @@ app/
 ├── admin/page.tsx              # 관리자 집계 화면
 ├── api/admin/reset/route.ts    # 관리자 데이터 초기화 API
 ├── chatgpt-auth.ts             # 로그인 사용자 해석 및 리다이렉트
-├── simulation/page.tsx         # 8인 시뮬레이션
+├── simulation/                 # 20인 라이브 시뮬레이션 화면과 재생 로직
 ├── globals.css                 # 참가자 화면 스타일
 └── admin/                      # 관리자 화면 스타일
 db/
