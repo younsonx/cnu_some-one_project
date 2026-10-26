@@ -8,6 +8,13 @@
       "when": 1789963897262,
       "tag": "0000_gray_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792988467329,
+      "tag": "0001_overjoyed_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

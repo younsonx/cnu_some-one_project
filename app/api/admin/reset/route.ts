@@ -24,7 +24,9 @@ export async function POST(request: Request) {
   const db = getD1();
   await db.batch([
     db.prepare("DELETE FROM choices"),
+    db.prepare("DELETE FROM participant_sessions"),
     db.prepare("DELETE FROM participants WHERE is_sample = 0"),
+    db.prepare("UPDATE event_state SET current_stage = 1, updated_at = CURRENT_TIMESTAMP WHERE id = 1"),
   ]);
 
   return Response.redirect(new URL("/admin?reset=done", request.url), 303);

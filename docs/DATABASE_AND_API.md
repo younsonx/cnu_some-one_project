@@ -6,16 +6,31 @@
 erDiagram
     PARTICIPANTS ||--o{ CHOICES : sends
     PARTICIPANTS ||--o{ CHOICES : receives
+    PARTICIPANTS ||--o{ PARTICIPANT_SESSIONS : owns
 
     PARTICIPANTS {
       text id PK
       text session_token UK
       text nickname UK
+      text password_hash
+      text password_salt
       text gender
       text avatar
       text job
       integer is_sample
       text created_at
+    }
+
+    PARTICIPANT_SESSIONS {
+      text token PK
+      text participant_id FK
+      text created_at
+    }
+
+    EVENT_STATE {
+      integer id PK
+      integer current_stage
+      text updated_at
     }
 
     CHOICES {
@@ -30,7 +45,8 @@ erDiagram
 
 ## 2. 무결성 규칙
 
-- 참가자 ID, 세션 토큰과 닉네임은 고유해야 합니다.
+- 참가자 ID, 초기 세션 토큰과 닉네임은 고유해야 합니다.
+- 평문 비밀번호는 저장하지 않고 salt와 PBKDF2 해시만 저장합니다.
 - 성별은 `male` 또는 `female`만 허용합니다.
 - 단계는 1~3만 허용합니다.
 - 하트 색상은 `red` 또는 `yellow`만 허용합니다.
@@ -41,7 +57,7 @@ erDiagram
 
 ### `GET /api/app`
 
-`Authorization: Bearer <token>` 헤더로 참가자를 확인하고 현재 프로필, 실제 상대 참가자 목록, 완료 단계와 개인 결과를 반환합니다.
+`Authorization: Bearer <token>` 헤더로 참가자를 확인하고 현재 프로필, 실제 상대 참가자 목록, 전역 행사 단계, 제출률과 공개 가능한 개인 결과를 반환합니다.
 
 ### `POST /api/app` — 프로필 생성
 
@@ -49,7 +65,18 @@ erDiagram
 {
   "action": "createProfile",
   "nickname": "참가자닉네임",
+  "password": "간단한 비밀번호",
   "gender": "female"
+}
+```
+
+### `POST /api/app` — 재로그인
+
+```json
+{
+  "action": "login",
+  "nickname": "참가자닉네임",
+  "password": "간단한 비밀번호"
 }
 ```
 

@@ -5,11 +5,25 @@ export const participants = sqliteTable("participants", {
   id: text("id").primaryKey(),
   sessionToken: text("session_token").notNull().unique(),
   nickname: text("nickname").notNull().unique(),
+  passwordHash: text("password_hash"),
+  passwordSalt: text("password_salt"),
   gender: text("gender", { enum: ["male", "female"] }).notNull(),
   avatar: text("avatar").notNull().default("💌"),
   job: text("job").notNull().default("참가자"),
   isSample: integer("is_sample", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const participantSessions = sqliteTable("participant_sessions", {
+  token: text("token").primaryKey(),
+  participantId: text("participant_id").notNull().references(() => participants.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const eventState = sqliteTable("event_state", {
+  id: integer("id").primaryKey(),
+  currentStage: integer("current_stage").notNull().default(1),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const choices = sqliteTable("choices", {

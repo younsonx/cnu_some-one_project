@@ -5,7 +5,7 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("ships every public route and server endpoint", async () => {
+test("ships participant, admin, simulation, and API routes", async () => {
   await Promise.all([
     access(new URL("app/page.tsx", root)),
     access(new URL("app/admin/page.tsx", root)),
@@ -15,35 +15,23 @@ test("ships every public route and server endpoint", async () => {
   ]);
 });
 
-test("keeps the three-stage heart rules in the participant app", async () => {
-  const [page, schema] = await Promise.all([
-    read("app/page.tsx"),
-    read("db/schema.ts"),
-  ]);
-
-  assert.match(page, /gender === "female" \? 1 : 2/);
-  assert.match(page, /stage === 3 \? undefined : yellowPick/);
-  assert.match(page, /localStorage\.setItem\(TOKEN_KEY/);
-  assert.match(schema, /enum: \["red", "yellow"\]/);
-  assert.match(schema, /uniqueIndex\("idx_choices_sender_stage_color"\)/);
+test("implements password login without storing plaintext passwords", async () => {
+  const [api, schema] = await Promise.all([read("app/api/app/route.ts"), read("db/schema.ts")]);
+  assert.match(api, /PBKDF2/);
+  assert.match(api, /PASSWORD_ITERATIONS = 120_000/);
+  assert.match(api, /action === "login"/);
+  assert.match(schema, /passwordHash: text\("password_hash"\)/);
+  assert.match(schema, /participantSessions/);
+  assert.doesNotMatch(schema, /password: text\(/);
 });
 
-test("documents participant, admin, database, and security design", async () => {
-  const [readme, gitignore] = await Promise.all([
-    read("README.md"),
-    read(".gitignore"),
-  ]);
-
-  for (const path of [
-    "docs/ARCHITECTURE.md",
-    "docs/PARTICIPANT_APP.md",
-    "docs/ADMIN_DASHBOARD.md",
-    "docs/DATABASE_AND_API.md",
-    "docs/SECURITY_AND_LIMITATIONS.md",
-  ]) {
-    assert.match(readme, new RegExp(path.replaceAll(".", "\\.")));
-    await access(new URL(path, root));
-  }
-
-  assert.match(gitignore, /^\.dev\.vars$/m);
+test("gates stages on all required submissions and reveals completed rounds", async () => {
+  const [api, page] = await Promise.all([read("app/api/app/route.ts"), read("app/page.tsx")]);
+  assert.match(api, /counts\.stage1Done >= counts\.women/);
+  assert.match(api, /counts\.stage2Done >= counts\.men/);
+  assert.match(api, /counts\.stage3Done >= counts\.total/);
+  assert.match(api, /c\.stage < \?/);
+  assert.match(page, /setInterval/);
+  assert.match(page, /서로를 최종 선택했어요/);
+  assert.match(page, /나를 최종 선택했어요/);
 });

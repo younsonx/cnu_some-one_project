@@ -41,6 +41,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   `).all<Choice>();
   const participants = participantRows.results;
   const choices = choiceRows.results;
+  const eventRow = await db.prepare("SELECT current_stage AS currentStage FROM event_state WHERE id = 1").first<{ currentStage: number }>();
+  const currentStage = eventRow?.currentStage ?? 1;
   const women = participants.filter((p) => p.gender === "female");
   const men = participants.filter((p) => p.gender === "male");
   const completed = (stage: number) => new Set(choices.filter((c) => c.stage === stage).map((c) => c.senderId)).size;
@@ -57,7 +59,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <section className="admin-overview">
         <article><span>👥</span><p><small>실제 참가자</small><strong>{participants.length}<i>명</i></strong></p><em>여 {women.length} · 남 {men.length}</em></article>
         <article><span>♥</span><p><small>전달된 마음</small><strong>{choices.length}<i>개</i></strong></p><em>빨강 {choices.filter((c) => c.heartColor === "red").length} · 노랑 {choices.filter((c) => c.heartColor === "yellow").length}</em></article>
-        <article><span>↔</span><p><small>최종 상호 선택</small><strong>{finalPairs.length}<i>쌍</i></strong></p><em>3차 빨간 하트 기준</em></article>
+        <article><span>↔</span><p><small>{currentStage >= 4 ? "최종 상호 선택" : "현재 진행 단계"}</small><strong>{currentStage >= 4 ? finalPairs.length : Math.min(currentStage, 3)}<i>{currentStage >= 4 ? "쌍" : "차"}</i></strong></p><em>{currentStage >= 4 ? "3차 빨간 하트 기준" : "전원 제출 시 자동 전환"}</em></article>
       </section>
 
       <section className="admin-block"><div className="admin-heading"><div><span>01</span><p><strong>단계별 제출 현황</strong><small>각 단계에서 제출을 마친 실제 참가자 수</small></p></div></div><div className="progress-grid">{([1, 2, 3] as const).map((stage) => { const done = completed(stage); const total = expected[stage]; const percent = total ? Math.min(100, Math.round(done / total * 100)) : 0; return <article key={stage}><header><span>{stage}</span><div><strong>{stage === 1 ? "여성의 첫 번째 선택" : stage === 2 ? "남성의 두 번째 선택" : "모두의 최종 선택"}</strong><small>{done}명 / {total}명 제출</small></div><b>{percent}%</b></header><div className="progress-track"><i style={{ width: `${percent}%` }} /></div><p>{total > 0 && done === total ? "✓ 전원 제출 완료" : total === 0 ? "참가자 입장 대기" : `${total - done}명 미제출`}</p></article>; })}</div></section>
