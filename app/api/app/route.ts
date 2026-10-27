@@ -10,7 +10,9 @@ type ParticipantRow = {
   is_sample: number;
 };
 
-const PASSWORD_ITERATIONS = 120_000;
+// Cloudflare Workers' Web Crypto implementation accepts at most 100,000
+// PBKDF2 iterations per deriveBits call.
+const PASSWORD_ITERATIONS = 100_000;
 
 async function prepare() {
   await ensureSchema();

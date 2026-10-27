@@ -18,7 +18,7 @@ test("ships participant, admin, simulation, and API routes", async () => {
 test("implements password login without storing plaintext passwords", async () => {
   const [api, schema] = await Promise.all([read("app/api/app/route.ts"), read("db/schema.ts")]);
   assert.match(api, /PBKDF2/);
-  assert.match(api, /PASSWORD_ITERATIONS = 120_000/);
+  assert.match(api, /PASSWORD_ITERATIONS = 100_000/);
   assert.match(api, /action === "login"/);
   assert.match(schema, /passwordHash: text\("password_hash"\)/);
   assert.match(schema, /participantSessions/);
