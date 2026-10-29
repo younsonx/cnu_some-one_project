@@ -10,6 +10,8 @@ type ParticipantRow = {
   is_sample: number;
 };
 
+const DEPARTED_JOB = "중도퇴장";
+
 // Cloudflare Workers' Web Crypto implementation accepts at most 100,000
 // PBKDF2 iterations per deriveBits call.
 const PASSWORD_ITERATIONS = 100_000;
@@ -94,10 +96,10 @@ async function stageCounts(db: D1Database) {
     SELECT
       (SELECT COUNT(*) FROM participants WHERE is_sample = 0 AND gender = 'female') AS women,
       (SELECT COUNT(*) FROM participants WHERE is_sample = 0 AND gender = 'male') AS men,
-      (SELECT COUNT(*) FROM participants WHERE is_sample = 0) AS total,
+      (SELECT COUNT(*) FROM participants WHERE is_sample = 0 AND job != '${DEPARTED_JOB}') AS total,
       (SELECT COUNT(DISTINCT c.sender_id) FROM choices c JOIN participants p ON p.id = c.sender_id WHERE c.stage = 1 AND p.is_sample = 0 AND p.gender = 'female') AS stage1Done,
       (SELECT COUNT(DISTINCT c.sender_id) FROM choices c JOIN participants p ON p.id = c.sender_id WHERE c.stage = 2 AND p.is_sample = 0 AND p.gender = 'male') AS stage2Done,
-      (SELECT COUNT(DISTINCT c.sender_id) FROM choices c JOIN participants p ON p.id = c.sender_id WHERE c.stage = 3 AND p.is_sample = 0) AS stage3Done
+      (SELECT COUNT(DISTINCT c.sender_id) FROM choices c JOIN participants p ON p.id = c.sender_id WHERE c.stage = 3 AND p.is_sample = 0 AND p.job != '${DEPARTED_JOB}') AS stage3Done
   `).first<{ women: number; men: number; total: number; stage1Done: number; stage2Done: number; stage3Done: number }>();
   return rows ?? { women: 0, men: 0, total: 0, stage1Done: 0, stage2Done: 0, stage3Done: 0 };
 }
@@ -126,8 +128,9 @@ async function stateFor(db: D1Database, profile: ParticipantRow) {
     SELECT id, nickname, gender, avatar, job, is_sample
     FROM participants
     WHERE is_sample = 0 AND gender != ? AND id != ?
+      AND (? != 3 OR job != '${DEPARTED_JOB}')
     ORDER BY created_at ASC
-  `).bind(profile.gender, profile.id).all<ParticipantRow>();
+  `).bind(profile.gender, profile.id, currentStage).all<ParticipantRow>();
   const completedRows = await db.prepare("SELECT DISTINCT stage FROM choices WHERE sender_id = ? ORDER BY stage")
     .bind(profile.id).all<{ stage: number }>();
   const actualResults = await db.prepare(`
@@ -250,14 +253,16 @@ export async function POST(request: Request) {
     if (stage !== currentStage || stage < 1 || stage > 3) {
       return Response.json({ error: "아직 이 단계의 선택이 열리지 않았어요." }, { status: 403 });
     }
-    const allowedStage = (profile.gender === "female" && stage === 1) || (profile.gender === "male" && stage === 2) || stage === 3;
+    const allowedStage = (profile.gender === "female" && stage === 1)
+      || (profile.gender === "male" && stage === 2)
+      || (stage === 3 && profile.job !== DEPARTED_JOB);
     if (!allowedStage) return Response.json({ error: "현재 참여할 수 없는 선택이에요." }, { status: 403 });
     if (!payload.redRecipientId || (stage !== 3 && !payload.yellowRecipientId)) return Response.json({ error: "보낼 마음을 모두 선택해 주세요." }, { status: 400 });
 
     const recipientIds = [payload.redRecipientId, payload.yellowRecipientId].filter(Boolean) as string[];
     const placeholders = recipientIds.map(() => "?").join(",");
-    const validRecipients = await db.prepare(`SELECT id FROM participants WHERE is_sample = 0 AND gender != ? AND id IN (${placeholders})`)
-      .bind(profile.gender, ...recipientIds).all<{ id: string }>();
+    const validRecipients = await db.prepare(`SELECT id FROM participants WHERE is_sample = 0 AND gender != ? AND (? != 3 OR job != '${DEPARTED_JOB}') AND id IN (${placeholders})`)
+      .bind(profile.gender, stage, ...recipientIds).all<{ id: string }>();
     if (new Set(validRecipients.results.map((row) => row.id)).size !== new Set(recipientIds).size) return Response.json({ error: "선택한 참가자를 확인해 주세요." }, { status: 400 });
 
     const existing = await db.prepare("SELECT 1 AS found FROM choices WHERE sender_id = ? AND stage = ? LIMIT 1").bind(profile.id, stage).first();

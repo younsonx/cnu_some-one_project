@@ -12,6 +12,7 @@ test("ships participant, admin, simulation, and API routes", async () => {
     access(new URL("app/simulation/page.tsx", root)),
     access(new URL("app/api/app/route.ts", root)),
     access(new URL("app/api/admin/reset/route.ts", root)),
+    access(new URL("app/api/admin/attendance/route.ts", root)),
   ]);
 });
 
@@ -34,6 +35,14 @@ test("gates stages on all required submissions and reveals completed rounds", as
   assert.match(page, /setInterval/);
   assert.match(page, /서로를 최종 선택했어요/);
   assert.match(page, /나를 최종 선택했어요/);
+});
+
+test("preserves departed participants while excluding them from the final round", async () => {
+  const [api, page, admin] = await Promise.all([read("app/api/app/route.ts"), read("app/page.tsx"), read("app/admin/page.tsx")]);
+  assert.match(api, /DEPARTED_JOB/);
+  assert.match(api, /job != '\$\{DEPARTED_JOB\}'/);
+  assert.match(page, /중도 퇴장 처리됐어요/);
+  assert.match(admin, /api\/admin\/attendance/);
 });
 
 test("includes an isolated 20-person live simulation", async () => {

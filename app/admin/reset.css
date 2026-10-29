@@ -7,6 +7,46 @@
   font-weight: 700;
 }
 
+.attendance-success {
+  padding: 16px 20px;
+  margin-bottom: 22px;
+  border-radius: 16px;
+  background: #edf6e9;
+  color: #3b6630;
+  font-weight: 700;
+}
+
+.admin-participants article.departed {
+  opacity: .68;
+  background: #f3efec;
+}
+
+.admin-participants form {
+  margin-left: auto;
+}
+
+.admin-participants form button {
+  border: 1px solid #e6d4ca;
+  border-radius: 9px;
+  padding: 6px 8px;
+  background: #fff8f4;
+  color: #8b5548;
+  font-size: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-participants article.departed form button {
+  border-color: #bfd4b8;
+  background: #f2f8ef;
+  color: #47713d;
+}
+
+.admin-participants form button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 .admin-reset {
   display: flex;
   align-items: center;

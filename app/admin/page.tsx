@@ -14,10 +14,10 @@ export const metadata: Metadata = {
   twitter: { title: "관리자 결과 — 마음, 한 잔", description: "실제 행사 운영 현황과 결과", images: [] },
 };
 
-type Participant = { id: string; nickname: string; gender: "male" | "female"; avatar: string; created_at: string };
+type Participant = { id: string; nickname: string; gender: "male" | "female"; avatar: string; job: string; created_at: string };
 type Choice = { stage: 1 | 2 | 3; heartColor: "red" | "yellow"; senderId: string; fromName: string; fromAvatar: string; recipientId: string; toName: string; toAvatar: string };
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ reset?: string; attendance?: string }> }) {
   const user = await requireChatGPTUser("/admin");
   const query = await searchParams;
   const configuredAdmin = ((env.ADMIN_EMAIL as string | undefined) ?? process.env.ADMIN_EMAIL)?.toLowerCase();
@@ -27,7 +27,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   await ensureSchema();
   const db = getD1();
-  const participantRows = await db.prepare("SELECT id, nickname, gender, avatar, created_at FROM participants WHERE is_sample = 0 ORDER BY created_at")
+  const participantRows = await db.prepare("SELECT id, nickname, gender, avatar, job, created_at FROM participants WHERE is_sample = 0 ORDER BY created_at")
     .all<Participant>();
   const choiceRows = await db.prepare(`
     SELECT c.stage, c.heart_color AS heartColor,
@@ -45,8 +45,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const currentStage = eventRow?.currentStage ?? 1;
   const women = participants.filter((p) => p.gender === "female");
   const men = participants.filter((p) => p.gender === "male");
-  const completed = (stage: number) => new Set(choices.filter((c) => c.stage === stage).map((c) => c.senderId)).size;
-  const expected = { 1: women.length, 2: men.length, 3: participants.length };
+  const activeParticipants = participants.filter((p) => p.job !== "중도퇴장");
+  const completed = (stage: number) => new Set(choices.filter((c) => c.stage === stage && (stage !== 3 || activeParticipants.some((p) => p.id === c.senderId))).map((c) => c.senderId)).size;
+  const expected = { 1: women.length, 2: men.length, 3: activeParticipants.length };
   const finalPairs = choices.filter((c) => c.stage === 3 && participants.find((p) => p.id === c.senderId)?.gender === "female")
     .filter((c) => choices.some((other) => other.stage === 3 && other.senderId === c.recipientId && other.recipientId === c.senderId));
 
@@ -56,6 +57,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
     <div className="admin-content">
       {query.reset === "done" && <div className="reset-success">✓ 기존 테스트 프로필과 선택 기록을 모두 초기화했습니다.</div>}
+      {query.attendance === "departed" && <div className="attendance-success">✓ 참가자를 중도 퇴장 처리했습니다. 계정과 기존 선택 기록은 보존됩니다.</div>}
+      {query.attendance === "restored" && <div className="attendance-success">✓ 참가자를 3차 선택 대상에 다시 포함했습니다.</div>}
       <section className="admin-overview">
         <article><span>👥</span><p><small>실제 참가자</small><strong>{participants.length}<i>명</i></strong></p><em>여 {women.length} · 남 {men.length}</em></article>
         <article><span>♥</span><p><small>전달된 마음</small><strong>{choices.length}<i>개</i></strong></p><em>빨강 {choices.filter((c) => c.heartColor === "red").length} · 노랑 {choices.filter((c) => c.heartColor === "yellow").length}</em></article>
@@ -64,7 +67,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <section className="admin-block"><div className="admin-heading"><div><span>01</span><p><strong>단계별 제출 현황</strong><small>각 단계에서 제출을 마친 실제 참가자 수</small></p></div></div><div className="progress-grid">{([1, 2, 3] as const).map((stage) => { const done = completed(stage); const total = expected[stage]; const percent = total ? Math.min(100, Math.round(done / total * 100)) : 0; return <article key={stage}><header><span>{stage}</span><div><strong>{stage === 1 ? "여성의 첫 번째 선택" : stage === 2 ? "남성의 두 번째 선택" : "모두의 최종 선택"}</strong><small>{done}명 / {total}명 제출</small></div><b>{percent}%</b></header><div className="progress-track"><i style={{ width: `${percent}%` }} /></div><p>{total > 0 && done === total ? "✓ 전원 제출 완료" : total === 0 ? "참가자 입장 대기" : `${total - done}명 미제출`}</p></article>; })}</div></section>
 
-      <section className="admin-block"><div className="admin-heading"><div><span>02</span><p><strong>실제 참가자 명단</strong><small>닉네임과 성별을 등록하고 입장한 사용자</small></p></div><b>{participants.length}명</b></div>{participants.length ? <div className="admin-participants">{participants.map((p) => <article key={p.id}><div>{p.avatar}</div><p><strong>{p.nickname}</strong><small>{p.gender === "female" ? "여성" : "남성"}</small></p><span>입장 완료</span></article>)}</div> : <Empty text="아직 실제로 입장한 참가자가 없습니다." />}</section>
+      <section className="admin-block"><div className="admin-heading"><div><span>02</span><p><strong>실제 참가자 명단</strong><small>중도 퇴장 시 계정과 기존 기록은 보존되고 3차 제출 대상에서만 제외됩니다.</small></p></div><b>{participants.length}명</b></div>{participants.length ? <div className="admin-participants">{participants.map((p) => { const departed = p.job === "중도퇴장"; return <article className={departed ? "departed" : ""} key={p.id}><div>{p.avatar}</div><p><strong>{p.nickname}</strong><small>{p.gender === "female" ? "여성" : "남성"}</small></p><form action="/api/admin/attendance" method="post"><input type="hidden" name="participantId" value={p.id} /><input type="hidden" name="action" value={departed ? "restore" : "depart"} /><button type="submit" disabled={currentStage >= 4}>{departed ? "복귀 처리" : "중도 퇴장"}</button></form></article>; })}</div> : <Empty text="아직 실제로 입장한 참가자가 없습니다." />}</section>
 
       <section className="admin-block"><div className="admin-heading"><div><span>03</span><p><strong>전체 마음 전달 기록</strong><small>실제 참가자들이 단계별로 보낸 하트</small></p></div><b>{choices.length}개</b></div>{choices.length ? <div className="admin-rounds">{([1, 2, 3] as const).map((stage) => <article key={stage}><header><span>{stage}</span><div><strong>{stage}차 선택</strong><small>{choices.filter((c) => c.stage === stage).length}개 전달</small></div></header><div>{choices.filter((c) => c.stage === stage).map((choice, index) => <p key={index}><span>{choice.fromAvatar}</span><strong>{choice.fromName}</strong><i>→</i><b className={choice.heartColor}>♥</b><strong>{choice.toName}</strong><span>{choice.toAvatar}</span></p>)}</div></article>)}</div> : <Empty text="아직 저장된 선택이 없습니다." />}</section>
 

@@ -18,6 +18,7 @@ type View = "auth" | "select" | "confirm" | "waiting" | "reveal" | "results";
 type AuthMode = "login" | "create";
 
 const TOKEN_KEY = "maeum-session-token";
+const DEPARTED_JOB = "중도퇴장";
 
 export default function Home() {
   const [data, setData] = useState<AppState | null>(null);
@@ -47,7 +48,9 @@ export default function Home() {
       } else setView("waiting");
       return;
     }
-    if (!state.completedStages.includes(3)) {
+    if (state.profile.job === DEPARTED_JOB) {
+      setView("waiting");
+    } else if (!state.completedStages.includes(3)) {
       setStage(3); setView("reveal");
     } else setView("waiting");
   }, []);
@@ -193,8 +196,9 @@ function Waiting({ data, onRefresh }: { data: AppState; onRefresh: () => void })
   const current = Math.min(data.event.currentStage, 3) as 1 | 2 | 3;
   const progress = data.event.progress[current];
   const hasSubmitted = data.completedStages.includes(current);
-  const isParticipantTurn = (current === 1 && data.profile.gender === "female") || (current === 2 && data.profile.gender === "male") || current === 3;
-  return <div className="screen centered-screen waiting-screen"><StageRail active={current} /><div className="sent-visual"><span className="orbit-heart one">♥</span><span className="orbit-heart two">♥</span><div className="envelope">♥</div></div><div className="eyebrow"><span /> LIVE STATUS</div><h1>{hasSubmitted ? "내 선택을 마쳤어요" : isParticipantTurn ? "선택할 차례예요" : `${current}차 선택을 기다려요`}</h1><p className="intro">현재 단계 참여자 전원이 제출하면 다음 단계가 자동으로 열리고, 방금 받은 마음도 공개돼요.</p><div className="waiting-card"><div className="pulse-dot" /><p><strong>{current}차 선택 {progress.completed}명 / {progress.expected}명 완료</strong><small>{Math.max(0, progress.expected - progress.completed)}명의 제출을 기다리는 중 · 3초마다 자동 확인</small></p></div>{isParticipantTurn && !hasSubmitted && <button className="primary-button wide" onClick={onRefresh}>선택 화면 열기 <span>→</span></button>}<button className="secondary-button refresh-state" onClick={onRefresh}>지금 새로고침</button><ReleasedResults results={data.results} maxStage={current - 1} /></div>;
+  const isDeparted = data.profile.job === DEPARTED_JOB;
+  const isParticipantTurn = !isDeparted && ((current === 1 && data.profile.gender === "female") || (current === 2 && data.profile.gender === "male") || current === 3);
+  return <div className="screen centered-screen waiting-screen"><StageRail active={current} /><div className="sent-visual"><span className="orbit-heart one">♥</span><span className="orbit-heart two">♥</span><div className="envelope">♥</div></div><div className="eyebrow"><span /> LIVE STATUS</div><h1>{isDeparted ? "중도 퇴장 처리됐어요" : hasSubmitted ? "내 선택을 마쳤어요" : isParticipantTurn ? "선택할 차례예요" : `${current}차 선택을 기다려요`}</h1><p className="intro">{isDeparted ? "기존 선택과 받은 마음은 그대로 보존되며, 3차 제출 대상에서만 제외됩니다." : "현재 단계 참여자 전원이 제출하면 다음 단계가 자동으로 열리고, 방금 받은 마음도 공개돼요."}</p><div className="waiting-card"><div className="pulse-dot" /><p><strong>{current}차 선택 {progress.completed}명 / {progress.expected}명 완료</strong><small>{Math.max(0, progress.expected - progress.completed)}명의 제출을 기다리는 중 · 3초마다 자동 확인</small></p></div>{isParticipantTurn && !hasSubmitted && <button className="primary-button wide" onClick={onRefresh}>선택 화면 열기 <span>→</span></button>}<button className="secondary-button refresh-state" onClick={onRefresh}>지금 새로고침</button><ReleasedResults results={data.results} maxStage={current - 1} /></div>;
 }
 
 function StageReveal({ data, nextStage, onContinue }: { data: AppState; nextStage: number; onContinue: () => void }) {
